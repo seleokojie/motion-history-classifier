@@ -1,35 +1,107 @@
-# MHI-based Activity Classification
+"""# MHI Activity Classifier
 
-**Overview**
-This project implements Motion History Image (MHI)–based activity classification for the six actions: walking, jogging, running, boxing, clapping, and waving.  
+This project implements human activity recognition (walking, jogging, running, boxing, waving, clapping) from video using **Motion History Images** (MHIs) and handcrafted Hu moments. You get:
 
-**Environment**
-- Python 3.8.8  
-- Dependencies in `requirements.txt`  
+- MHI & Hu‐moment feature extraction (no pre-built MHI or Hu functions).
+- K-Nearest-Neighbors, SVM, AdaBoost or a soft-voting ensemble (KNN+SVM+RF+AdaBoost).
+- Grid-search / random-search over threshold & history length, with parallelism.
+- Feature-caching, down-sampling, and early-stopping to speed up tuning.
+- Real-time annotation script for new videos.
 
-**Data Preparation**
-1. Download the KTH Actions dataset and place all `.avi` files under `data/`.  
-2. Copy `sequences.txt` (from the KTH download) into the project root.  
+---
 
-**Usage**
-1. **Extract features**  
-   ```bash
-   python scripts/extract_features.py \
-     --dataset-dir data/ \
-     --sequences-txt sequences.txt \
-     --output features.pkl
-    ```
-2. **Train the model**  
-   ```bash
-   python scripts/train_model.py \
-    --features-file features.pkl \
-    --model-out knn_model.pkl \
-    --output-cm confusion_matrix.png
-  ```
-3. **Annotate video**
-    ```bash
-    python scripts/annotate_video.py \
-     --input data/person11_walking_d1.avi \
-     --model knn_model.pkl \
-     --output results/person11_walking_annotated.avi
-  ```
+## Repository Layout
+
+project_root/
+├── data/
+│   ├── sequences.txt
+│   └── videos/           # all .avi clips here
+├── src/
+│   ├── data_loader.py    # parse sequences.txt & load frame segments
+│   ├── mhi.py            # compute frame-diff binaries & MHIs
+│   ├── features.py       # compute central & scale-invariant moments
+│   ├── classifier.py     # KNN, SVM, AdaBoost & VotingClassifier wrapper
+│   └── utils.py          # e.g. frame annotation
+├── scripts/
+│   ├── train.py          # hyperparam tuning & final training script
+│   └── annotate.py       # real-time video annotation using trained model
+├── outputs/
+│   ├── model_best.joblib
+│   ├── confusion_matrix.png
+│   └── annotated_videos/
+├── requirements.txt
+└── README.md
+
+---
+
+## Setup
+
+1. Clone this repo:
+   git clone https://github.com/you/mhi-activity-classifier.git
+   cd mhi-activity-classifier
+
+2. Create & activate a Python 3.8+ virtual environment:
+   python3 -m venv venv
+   source venv/bin/activate        # macOS/Linux
+   venv\Scripts\activate.bat       # Windows
+
+3. Install dependencies:
+   pip install -r requirements.txt
+
+4. Ensure src/ is on your Python path (if needed):
+   export PYTHONPATH="$PWD"        # macOS/Linux
+   set PYTHONPATH=%CD%             # Windows PowerShell
+
+---
+
+## Usage
+
+### Training & Hyperparameter Search
+
+Quick test run (accuracy doesn’t matter):
+python scripts/train.py \\
+  --data_dir data \\
+  --output_dir outputs \\
+  --clf knn \\
+  --k 1 \\
+  --min_threshold 30 --max_threshold 30 --step 1 \\
+  --min_tau 30       --max_tau 30       --step 1 \\
+  --jobs 1 --backend threading \\
+  --n_iter 1 \\
+  --subsample 5 \\
+  --patience 1 --min_acc 0.5
+
+Parallel random search with soft-voting ensemble:
+python scripts/train.py \\
+  --data_dir data \\
+  --output_dir outputs \\
+  --clf ensemble \\
+  --k 5 \\
+  --min_threshold 10 --max_threshold 60 --step 10 \\
+  --min_tau 10       --max_tau 60       --step 10 \\
+  --jobs 8 --backend threading \\
+  --n_iter 20 --seed 42 \\
+  --subsample 150 \\
+  --patience 10 --min_acc 0.1
+
+---
+
+## Annotate a New Video
+
+python scripts/annotate.py \\
+  --model_path outputs/model_best.joblib \\
+  --input_video data/videos/person22_walking_d1.avi \\
+  --output_video outputs/annotated_videos/walk22.avi \\
+  --threshold 30 \\
+  --tau 30
+
+---
+
+## Speed-Up Tips
+
+- Feature Caching: Precompute MHI+Hu features once (built into train.py)
+- Random Search: Use --n_iter to avoid full grid
+- Down-sampling: --subsample picks a small subset of segments
+- Early-Stopping: --patience & --min_acc bail on bad hyperparams
+- Parallelism: --jobs + --backend threading avoids Windows pickling
+"""
