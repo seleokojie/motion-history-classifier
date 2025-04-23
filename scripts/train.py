@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import sys
 import os
+import io
 
 # Ensure the src directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import argparse
+import urllib.request
+import zipfile
 import numpy as np
 import matplotlib.pyplot as plt
 from random import seed, sample
@@ -68,6 +71,33 @@ def main():
     parser.add_argument('--min_acc', type=float, default=0.1,
                         help='Min running accuracy for early stop')
     args = parser.parse_args()
+
+    # Download dataset if missing
+    seq_file   = os.path.join(args.data_dir, 'sequences.txt')
+    videos_dir = os.path.join(args.data_dir, 'videos')
+    if not os.path.exists(seq_file) or not os.path.isdir(videos_dir):
+        print(f"[INFO] Data not found in '{args.data_dir}', downloading KTH Actions dataset...")
+        os.makedirs(videos_dir, exist_ok=True)
+
+        # download sequences.txt once
+        seq_url = 'https://web.archive.org/web/20190901190223/https://www.nada.kth.se/cvap/actions/00sequences.txt'
+        temp_seq_file = os.path.join(args.data_dir, '00sequences.txt')
+        urllib.request.urlretrieve(seq_url, temp_seq_file)
+        os.rename(temp_seq_file, seq_file)
+
+        # per-action archives
+        actions = ['walking', 'jogging', 'running', 'boxing', 'handwaving', 'handclapping']
+        for action in actions:
+            zip_url = f'https://web.archive.org/web/20190421074025/https://www.nada.kth.se/cvap/actions/{action}.zip'
+            resp = urllib.request.urlopen(zip_url)
+            with zipfile.ZipFile(io.BytesIO(resp.read())) as zf:
+                for member in zf.namelist():
+                    if member.lower().endswith('.avi'):
+                        out_path = os.path.join(videos_dir, os.path.basename(member))
+                        with open(out_path, 'wb') as f:
+                            f.write(zf.read(member))
+
+        print("[INFO] Download and extraction complete.\n")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
