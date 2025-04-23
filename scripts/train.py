@@ -79,8 +79,11 @@ def main():
         print(f"[INFO] Data not found in '{args.data_dir}', downloading KTH Actions dataset...")
         os.makedirs(videos_dir, exist_ok=True)
 
-        # download sequences.txt once
-        seq_url = 'https://web.archive.org/web/20190901190223/https://www.nada.kth.se/cvap/actions/00sequences.txt'
+        # delete it if it exists
+        if os.path.exists(seq_file):
+            os.remove(seq_file)
+        # download the new one
+        seq_url = 'https://web.archive.org/web/20190818162100id_/http://www.nada.kth.se:80/cvap/actions/00sequences.txt'
         temp_seq_file = os.path.join(args.data_dir, '00sequences.txt')
         urllib.request.urlretrieve(seq_url, temp_seq_file)
         os.rename(temp_seq_file, seq_file)
@@ -88,7 +91,7 @@ def main():
         # per-action archives
         actions = ['walking', 'jogging', 'running', 'boxing', 'handwaving', 'handclapping']
         for action in actions:
-            zip_url = f'https://web.archive.org/web/20190421074025/https://www.nada.kth.se/cvap/actions/{action}.zip'
+            zip_url = f'https://web.archive.org/'f'web/20190421074025id_/http://www.nada.kth.se/cvap/actions/{action}.zip'
             resp = urllib.request.urlopen(zip_url)
             with zipfile.ZipFile(io.BytesIO(resp.read())) as zf:
                 for member in zf.namelist():
