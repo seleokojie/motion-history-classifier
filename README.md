@@ -1,4 +1,4 @@
-"""# MHI Activity Classifier
+# MHI Activity Classifier
 
 This project implements human activity recognition (walking, jogging, running, boxing, waving, clapping) from video using **Motion History Images** (MHIs) and handcrafted Hu moments. You get:
 
@@ -11,7 +11,7 @@ This project implements human activity recognition (walking, jogging, running, b
 ---
 
 ## Repository Layout
-
+```
 project_root/
 ├── data/
 │   ├── sequences.txt
@@ -31,26 +31,34 @@ project_root/
 │   └── annotated_videos/
 ├── requirements.txt
 └── README.md
-
+```
 ---
 
 ## Setup
 
 1. Clone this repo:
-   git clone https://github.com/you/mhi-activity-classifier.git
+  ```bash
+   git clone https://github.com/seleokojie/mhi-activity-classifier.git
    cd mhi-activity-classifier
+  ```
 
 2. Create & activate a Python 3.8+ virtual environment:
+  ```bash
    python3 -m venv venv
-   source venv/bin/activate        # macOS/Linux
+   source venv/bin/activate        # macOS/Linux or
    venv\Scripts\activate.bat       # Windows
+  ```
 
 3. Install dependencies:
-   pip install -r requirements.txt
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-4. Ensure src/ is on your Python path (if needed):
-   export PYTHONPATH="$PWD"        # macOS/Linux
-   set PYTHONPATH=%CD%             # Windows PowerShell
+4. Ensure `src/` is on your Python path (if needed):
+  ```bash
+   export PYTHONPATH="$PWD"        # macOS/Linux or
+   set PYTHONPATH=%CD%`            # Windows PowerShell
+  ```
 
 ---
 
@@ -59,6 +67,7 @@ project_root/
 ### Training & Hyperparameter Search
 
 Quick test run (accuracy doesn’t matter):
+```bash
 python scripts/train.py \\
   --data_dir data \\
   --output_dir outputs \\
@@ -70,8 +79,10 @@ python scripts/train.py \\
   --n_iter 1 \\
   --subsample 5 \\
   --patience 1 --min_acc 0.5
+```
 
 Parallel random search with soft-voting ensemble:
+```bash
 python scripts/train.py \\
   --data_dir data \\
   --output_dir outputs \\
@@ -83,25 +94,44 @@ python scripts/train.py \\
   --n_iter 20 --seed 42 \\
   --subsample 150 \\
   --patience 10 --min_acc 0.1
+```
 
 ---
 
 ## Annotate a New Video
 
+```bash
 python scripts/annotate.py \\
   --model_path outputs/model_best.joblib \\
   --input_video data/videos/person22_walking_d1.avi \\
   --output_video outputs/annotated_videos/walk22.avi \\
   --threshold 30 \\
   --tau 30
+```
+```bash
+python scripts/annotate.py \\
+  --model_path outputs/model_best.joblib \\
+  --input_video data/videos/person22_walking_d1.avi \\
+  --output_video outputs/annotated_videos/walk22.avi \\
+  --threshold 30 \\
+  --tau 30
+```
+
+```bash
+python scripts/annotate.py \\
+  --model_path outputs/model_best.joblib \\
+  --input_video data/videos/person22_walking_d1.avi \\
+  --output_video outputs/annotated_videos/walk22.avi \\
+  --threshold 30 \\
+  --tau 30
+```
 
 ---
 
 ## Speed-Up Tips
 
-- Feature Caching: Precompute MHI+Hu features once (built into train.py)
-- Random Search: Use --n_iter to avoid full grid
-- Down-sampling: --subsample picks a small subset of segments
-- Early-Stopping: --patience & --min_acc bail on bad hyperparams
-- Parallelism: --jobs + --backend threading avoids Windows pickling
-"""
+- Feature Caching: Precompute MHI+Hu features once (built into `train.py`)
+- Random Search: Use `--n_iter` to avoid full grid
+- Down-sampling: `--subsample` picks a small subset of segments
+- Early-Stopping: `--patience` & `--min_acc` bail on bad hyperparams
+- Parallelism: `--jobs` + `--backend` threading avoids Windows pickling
