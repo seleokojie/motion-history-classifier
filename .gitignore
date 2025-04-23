@@ -1,0 +1,19 @@
+# ignore video files
+*.avi
+
+#Ignore pyc (compiled Python files)
+*.pyc
+
+#Ignore IntelliJ project files
+.idea
+*.iml
+
+# Ignore specific pdf files
+Final Project_Activity Classification using MHI.pdf
+Classification using MHI.pdf
+
+# Ignore all joblib files
+*.joblib
+
+# Ignore output directories
+outputs
