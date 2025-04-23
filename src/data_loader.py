@@ -68,17 +68,24 @@ class DataLoader:
                 print(f"[DEBUG] Missing file: {e['video']}")
                 continue
             # otherwise open it
-            cap = cv2.VideoCapture(e['video'])
-            if not cap.isOpened():
-                continue
+            # look for cached .npy
+            cache = e['video'].replace('.avi', '.npy')
+            if os.path.exists(cache):
+                vid = np.load(cache)
+            else:
+                cap = cv2.VideoCapture(e['video'])
+                buf = []
+                while True:
+                    ret, frm = cap.read()
+                    if not ret: break
+                    gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+                    buf.append(gray)
+                cap.release()
+                vid = np.stack(buf, axis=0)
+                np.save(cache, vid)
+
+            # slice out each segment range
             frames = []
             for (start, end) in e['ranges']:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, start-1)
-                for fid in range(start, end+1):
-                    ret, frame = cap.read()
-                    if not ret: break
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    frames.append(gray)
-            cap.release()
-            if frames:
-                yield frames, e['action'], f"seg{idx}"
+                frames.extend(vid[start - 1:end])
+            yield frames, e['action'], f"seg{idx}"
