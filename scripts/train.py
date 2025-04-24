@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import sys
 import os
-import io
-import pickle
 
 # Ensure the src directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import io
+import pickle
 import argparse
 import urllib.request
 import zipfile
