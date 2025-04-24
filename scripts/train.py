@@ -19,6 +19,8 @@ from src.mhi import compute_binary_sequence, compute_mhi
 from src.features import extract_hu_features
 from src.classifier import MHIClassifier
 
+from sklearn.metrics import accuracy_score
+
 
 def evaluate_params(feats_train, feats_val, thr, tau, k, clf_type, patience, min_acc):
     """
@@ -32,18 +34,10 @@ def evaluate_params(feats_train, feats_val, thr, tau, k, clf_type, patience, min
     X_tr, y_tr = feats_train[(thr, tau)]
     clf.train(X_tr, y_tr)
 
-    # Validate with early stopping
     X_v, y_v = feats_val[(thr, tau)]
-    correct = 0
-    for i, feat in enumerate(X_v):
-        pred = clf.predict(feat.reshape(1, -1))[0]
-        if pred == y_v[i]:
-            correct += 1
-        # if after `patience` examples the running accuracy is too low, bail
-        if i >= patience and (correct / (i + 1)) < min_acc:
-            return thr, tau, 0.0
+    y_pred = clf.predict(X_v)
+    acc = accuracy_score(y_v, y_pred)
 
-    acc = correct / len(y_v)
     return thr, tau, acc
 
 def main():
