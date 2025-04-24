@@ -12,6 +12,13 @@ class DataLoader:
     }
 
     def __init__(self, data_dir, split='train'):
+        """
+        Initializes the DataLoader with the specified dataset directory and split.
+
+        Args:
+            data_dir (str): Path to the dataset directory.
+            split (str): The data split to use ('train', 'val', or 'test'). Default is 'train'.
+        """
         self.data_dir = data_dir
         self.video_dir = os.path.join(data_dir, 'videos')
         self.seq_file = os.path.join(data_dir, 'sequences.txt')
@@ -20,6 +27,15 @@ class DataLoader:
         print(f"[DEBUG] DataLoader for split='{self.split}' found {len(self.entries)} entries")
 
     def _parse_sequences(self):
+        """
+        Parses the sequences.txt file to extract video segments and metadata.
+
+        Returns:
+            list: A list of dictionaries, each containing:
+                - video (str): Path to the video file.
+                - action (str): Action label for the video.
+                - ranges (list): List of (start, end) frame ranges.
+        """
         entries = []
         with open(self.seq_file, 'r') as f:
             for line in f:
@@ -61,7 +77,13 @@ class DataLoader:
 
     def load_segments(self):
         """
-        Generator yielding (segment_frames: list[np.ndarray], label: str, id: str)
+        Loads video segments and their corresponding labels.
+
+        Yields:
+            tuple: A tuple containing:
+                - segment_frames (list[np.ndarray]): List of grayscale frames for the segment.
+                - label (str): Action label for the segment.
+                - id (str): Unique identifier for the segment.
         """
         for idx, e in enumerate(self.entries):
             if not os.path.exists(e['video']):

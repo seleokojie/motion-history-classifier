@@ -109,8 +109,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', required=True,
-                        help="Path to the trained model (e.g. outputs/model_best.joblib)")
+    parser.add_argument('--model_path',
+                        help="Path to the trained model (e.g. outputs/model_best.joblib)",
+                        default='outputs/model_best.joblib')
     parser.add_argument('--person', type=int, required=True,
                         help="Person ID (e.g., 22)")
     parser.add_argument('--action', required=True,

@@ -40,7 +40,14 @@ def compute_binary_sequence(frames, threshold=30, kernel_size=3):
 
 def compute_mhi(binaries, tau=30):
     """
-    Compute Motion History Image over binary masks
+    Computes the Motion History Image (MHI) from a sequence of binary masks.
+
+    Args:
+        binaries (list[np.ndarray]): List of binary masks as 2D NumPy arrays.
+        tau (int, optional): Decay parameter for the MHI. Default is 30.
+
+    Returns:
+        np.ndarray: The computed MHI as a 2D NumPy array normalized to the range [0, 255].
     """
     h, w = binaries[0].shape
     M = np.zeros((h, w), dtype=np.float32)

@@ -23,8 +23,23 @@ from src.classifier import MHIClassifier
 
 def evaluate_threshold(thr, feats_train, feats_val, clf_type, k):
     """
-    Train on train‐split with threshold=thr, tau fixed.
-    Return (thr, y_val, y_pred, classes).
+    Trains a classifier using a specified threshold and evaluates it on validation data.
+
+    Args:
+        thr (int): The threshold value to use for feature computation.
+        feats_train (dict): A dictionary where keys are thresholds and values are tuples
+                            containing training features (X) and labels (y).
+        feats_val (dict): A dictionary where keys are thresholds and values are tuples
+                          containing validation features (X) and labels (y).
+        clf_type (str): The type of classifier to use (e.g., 'knn', 'svm', etc.).
+        k (int): The number of neighbors for KNN or ensemble classifiers.
+
+    Returns:
+        tuple: A tuple containing:
+            - thr (int): The threshold used.
+            - y_val (list): The true labels for the validation set.
+            - y_pred (list): The predicted labels for the validation set.
+            - classes (list): The list of class labels.
     """
     X_tr, y_tr = feats_train[thr]
     clf = MHIClassifier(classifier_type=clf_type, k=k)

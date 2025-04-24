@@ -11,7 +11,15 @@ import numpy as np
 
 def central_moments(img, p, q):
     """
-    Compute central moment mu_{pq}
+    Computes the central moment \(\mu_{pq}\) of an image.
+
+    Args:
+        img (np.ndarray): Input image as a 2D NumPy array.
+        p (int): Order of the moment along the x-axis.
+        q (int): Order of the moment along the y-axis.
+
+    Returns:
+        float: The computed central moment value.
     """
     h, w = img.shape
     Y, X = np.mgrid[:h, :w]
@@ -25,14 +33,32 @@ def central_moments(img, p, q):
 
 
 def scale_invariant(mu_pq, mu_00, p, q):
+    """
+    Computes the scale-invariant moment based on central moments.
+
+    Args:
+        mu_pq (float): Central moment \(\mu_{pq}\).
+        mu_00 (float): Zeroth central moment \(\mu_{00}\).
+        p (int): Order of the moment along the x-axis.
+        q (int): Order of the moment along the y-axis.
+
+    Returns:
+        float: The scale-invariant moment value.
+    """
     return mu_pq / (mu_00 ** ((p + q) / 2 + 1)) if mu_00 > 0 else 0.0
 
 
 def extract_hu_features(img: np.ndarray) -> np.ndarray:
     """
-    Compute the 8 scale‐invariant central moments (Hu style),
-    doing all the heavy lifting on GPU via CuPy and then
-    returning a 8‐dim NumPy array.
+    Computes the 8 scale-invariant central moments (Hu moments) of an image.
+
+    This function uses GPU acceleration via CuPy if available, otherwise falls back to CPU computation.
+
+    Args:
+        img (np.ndarray): Input image as a 2D NumPy array.
+
+    Returns:
+        np.ndarray: A NumPy array of shape (8,) containing the computed Hu moments.
     """
     if _HAS_GPU:
         # GPU path with CuPy

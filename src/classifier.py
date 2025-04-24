@@ -7,10 +7,20 @@ import joblib
 class MHIClassifier:
     def __init__(self, classifier_type='knn', k=5, ada_estimators=50, rf_estimators=50):
         """
-        classifier_type: 'knn', 'svm', 'ada', or 'ensemble'
-        k: number of neighbors for KNN
-        ada_estimators: number of weak learners for AdaBoost
-        rf_estimators: number of trees for RandomForest in ensemble
+        Initializes the MHIClassifier with the specified classifier type and parameters.
+
+        Args:
+            classifier_type (str): The type of classifier to use. Options are:
+               'knn' (K-Nearest Neighbors),
+               'svm' (Support Vector Machine),
+               'ada' (AdaBoost),
+               'ensemble' (Voting ensemble of KNN, SVM, RandomForest, and AdaBoost).
+            k (int): Number of neighbors for the KNN classifier. Default is 5.
+            ada_estimators (int): Number of weak learners (estimators) for the AdaBoost classifier. Default is 50.
+            rf_estimators (int): Number of trees (estimators) for the RandomForest classifier in the ensemble. Default is 50.
+
+        Raises:
+            ValueError: If an unknown `classifier_type` is provided.
         """
         if classifier_type == 'knn':
             self.clf = KNeighborsClassifier(n_neighbors=k)
@@ -45,10 +55,25 @@ class MHIClassifier:
         return acc, cm, report
 
     def save(self, path):
+        """
+        Saves the trained classifier to a file.
+
+        Args:
+            path (str): Path to save the classifier.
+        """
         joblib.dump(self.clf, path)
 
     @classmethod
     def load(cls, path):
+        """
+        Loads a trained classifier from a file.
+
+        Args:
+            path (str): Path to the saved classifier file.
+
+        Returns:
+            MHIClassifier: An instance of the `MHIClassifier` with the loaded model.
+        """
         obj = cls()
         obj.clf = joblib.load(path)
         return obj

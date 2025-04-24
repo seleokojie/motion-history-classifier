@@ -20,6 +20,16 @@ from src.classifier import MHIClassifier
 
 
 def plot_confusion_matrix(y_true, y_pred, classes, output_path, title_suffix=''):
+    """
+    Plots and saves a confusion matrix as a heatmap.
+
+    Args:
+        y_true (list): True labels.
+        y_pred (list): Predicted labels.
+        classes (list): List of class names.
+        output_path (str): Path to save the confusion matrix plot.
+        title_suffix (str, optional): Suffix to append to the plot title.
+    """
     cm = confusion_matrix(y_true, y_pred, labels=classes)
     cm_norm = cm.astype(float) / cm.sum(axis=1)[:, None]
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -50,6 +60,16 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path, title_suffix='')
 
 
 def plot_prf_bars(y_true, y_pred, classes, output_path, title_suffix=''):
+    """
+    Plots and saves a bar chart for precision, recall, and F1-score per class.
+
+    Args:
+        y_true (list): True labels.
+        y_pred (list): Predicted labels.
+        classes (list): List of class names.
+        output_path (str): Path to save the bar chart.
+        title_suffix (str, optional): Suffix to append to the plot title.
+    """
     p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, labels=classes)
     x = np.arange(len(classes))
     width = 0.25
@@ -71,6 +91,18 @@ def plot_prf_bars(y_true, y_pred, classes, output_path, title_suffix=''):
 
 
 def plot_multiclass_roc(clf, X, y, classes, output_path, title_suffix=''):
+    """
+    Plots and saves one-vs-rest ROC curves for a multi-class classifier.
+
+    Args:
+        clf (object): Trained classifier with `predict_proba` method.
+        X (array-like): Feature matrix.
+        y (list): True labels.
+        classes (list): List of class names.
+        output_path (str): Path to save the ROC plot.
+        title_suffix (str, optional): Suffix to append to the plot title.
+    """
+
     Y_bin = label_binarize(y, classes=classes)
     y_score = clf.predict_proba(X)
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -94,6 +126,16 @@ def plot_multiclass_roc(clf, X, y, classes, output_path, title_suffix=''):
 
 
 def show_mhi_example(frames, thr, tau, prefix, output_dir):
+    """
+    Generates and saves an example Motion History Image (MHI) visualization.
+
+    Args:
+        frames (list): List of video frames.
+        thr (int): Threshold for binary sequence computation.
+        tau (int): History length for MHI computation.
+        prefix (str): Prefix for the output file name.
+        output_dir (str): Directory to save the MHI visualization.
+    """
     B = compute_binary_sequence(frames, threshold=thr)
     M = compute_mhi(B, tau)
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
