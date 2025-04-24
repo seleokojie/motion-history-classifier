@@ -1,6 +1,7 @@
 # ignore video files and sequences.txt
 data/videos/*avi
 data/videos/*.npy
+sequences.txt
 
 #Ignore pyc (compiled Python files)
 *.pyc
