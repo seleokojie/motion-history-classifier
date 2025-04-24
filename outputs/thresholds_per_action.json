@@ -1,8 +1,8 @@
 {
-  "boxing": 20,
+  "boxing": 50,
   "handclapping": 180,
-  "handwaving": 10,
-  "jogging": 60,
-  "running": 30,
+  "handwaving": 20,
+  "jogging": 210,
+  "running": 40,
   "walking": 280
 }
