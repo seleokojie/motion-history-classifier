@@ -108,16 +108,39 @@ def plot_multiclass_roc(clf, X, y, classes, output_path):
 
 
 def plot_hyperparam_heatmap(results_dict, thresholds, taus, output_path):
-    Z = np.array([[results_dict[(thr, tau)] for tau in taus] for thr in thresholds])
-    fig, ax = plt.subplots(figsize=(6,5))
-    im = ax.imshow(Z, origin='lower', aspect='auto',
-                   extent=[min(taus), max(taus), min(thresholds), max(thresholds)],
-                   cmap='viridis')
-    ax.set_xlabel('tau'); ax.set_ylabel('threshold')
+    """
+    results_dict: dict[(thr, tau)] -> accuracy (0.0–1.0)
+    thresholds:   list of threshold values (e.g. [10,20,30,40,50,60])
+    taus:         list of tau values       (e.g. [10,20,30,40,50,60])
+    """
+    # Build Z matrix of shape (len(thresholds), len(taus))
+    Z = np.array([
+        [results_dict.get((thr, tau), np.nan) for tau in taus]
+        for thr in thresholds
+    ])
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(
+        Z,
+        origin='lower',
+        aspect='auto',
+        cmap='viridis',
+        vmin=0.0, vmax=1.0     # if your acc is a fraction
+    )
+
+    # Tick every column/row and label them
+    ax.set_xticks(np.arange(len(taus)))
+    ax.set_xticklabels(taus, rotation=45, ha='right')
+    ax.set_yticks(np.arange(len(thresholds)))
+    ax.set_yticklabels(thresholds)
+
+    ax.set_xlabel('tau')
+    ax.set_ylabel('threshold')
     ax.set_title('Validation Accuracy across (threshold, tau)')
-    fig.colorbar(im, ax=ax, label='Accuracy')
+
+    # Add colorbar
     plt.tight_layout()
-    fig.savefig(output_path)
+    fig.savefig(output_path, dpi=150)
     plt.close(fig)
 
 
