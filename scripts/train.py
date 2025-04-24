@@ -54,7 +54,7 @@ def main():
     parser.add_argument('--k', type=int, default=5)
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--backend', choices=['loky','threading','multiprocessing'],
-                        default='threading')
+                        default='loky')
     parser.add_argument('--n_iter', type=int, default=None,
                         help='Number of random search iterations (None = full grid)')
     parser.add_argument('--seed', type=int, default=42)
