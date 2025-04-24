@@ -38,7 +38,7 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path):
     fig, ax = plt.subplots(figsize=(8, 8))
     im = ax.imshow(cm_norm * 100,
                    interpolation='nearest',
-                   cmap=plt.cm.Blues,
+                   cmap=plt.cm.YlGnBu,
                    norm=colors.Normalize(vmin=0, vmax=100))
 
     # Colorbar labeled as percentage
@@ -107,28 +107,47 @@ def plot_multiclass_roc(clf, X, y, classes, output_path):
     plt.close(fig)
 
 
-def plot_hyperparam_heatmap(results_dict, thresholds, taus, output_path):
+def plot_hyperparam_heatmap(results_dict, thresholds, taus, output_path,
+                            as_percentage=False):
     """
-    results_dict: dict[(thr, tau)] -> accuracy (0.0–1.0)
-    thresholds:   list of threshold values (e.g. [10,20,30,40,50,60])
-    taus:         list of tau values       (e.g. [10,20,30,40,50,60])
+    Draws a heatmap of validation accuracy over all (threshold, tau) pairs.
+
+    results_dict: dict[(thr, tau)] -> accuracy (float; either 0–1 or 0–100)
+    thresholds:   list of ints, e.g. [10,20,30,40,50,60]
+    taus:         list of ints, e.g. [10,20,30,40,50,60]
+    output_path:  where to save the PNG
+    as_percentage: if True, treats accuracy as 0-100; else 0-1.
     """
-    # Build Z matrix of shape (len(thresholds), len(taus))
+    # Build the matrix Z of shape (len(thresholds), len(taus))
     Z = np.array([
         [results_dict.get((thr, tau), np.nan) for tau in taus]
         for thr in thresholds
     ])
 
+    # If your results_dict was 0–1, but you want colors 0–100
+    if as_percentage:
+        Z_to_show = Z * 100
+        vmin, vmax = 0, 100
+        cbar_label = 'Accuracy (%)'
+    else:
+        Z_to_show = Z
+        vmin, vmax = 0.0, 1.0
+        cbar_label = 'Accuracy'
+
     fig, ax = plt.subplots(figsize=(6, 5))
     im = ax.imshow(
-        Z,
+        Z_to_show,
         origin='lower',
         aspect='auto',
         cmap='viridis',
-        vmin=0.0, vmax=1.0     # if your acc is a fraction
+        vmin=vmin, vmax=vmax
     )
 
-    # Tick every column/row and label them
+    # Colorbar
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label(cbar_label, rotation=270, labelpad=15)
+
+    # Set a tick at every row/col
     ax.set_xticks(np.arange(len(taus)))
     ax.set_xticklabels(taus, rotation=45, ha='right')
     ax.set_yticks(np.arange(len(thresholds)))
@@ -137,8 +156,6 @@ def plot_hyperparam_heatmap(results_dict, thresholds, taus, output_path):
     ax.set_xlabel('tau')
     ax.set_ylabel('threshold')
     ax.set_title('Validation Accuracy across (threshold, tau)')
-
-    # Add colorbar
     plt.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
