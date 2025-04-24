@@ -9,7 +9,7 @@ import argparse
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
+from matplotlib import colors, colormaps
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, roc_curve, auc
 from sklearn.preprocessing import label_binarize
 
@@ -38,7 +38,7 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path):
     fig, ax = plt.subplots(figsize=(8, 8))
     im = ax.imshow(cm_norm * 100,
                    interpolation='nearest',
-                   cmap="YlGnBu",
+                   cmap= colormaps['YlGnBu'],
                    norm=colors.Normalize(vmin=0, vmax=100))
 
     # Colorbar labeled as percentage
