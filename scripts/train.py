@@ -2,6 +2,7 @@
 import sys
 import os
 import io
+import pickle
 
 # Ensure the src directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -151,6 +152,10 @@ def main():
         )
         for thr, tau in grid
     )
+
+    with open(os.path.join(args.output_dir, 'search_results.pkl'), 'wb') as f:
+        pickle.dump({'grid': grid, 'results': results}, f)
+    print(f"Saved hyperparam search results to {args.output_dir}/search_results.pkl")
 
     # Pick best
     best_thr, best_tau, best_acc = max(results, key=lambda x: x[2])
