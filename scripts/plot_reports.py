@@ -38,7 +38,7 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path):
     fig, ax = plt.subplots(figsize=(8, 8))
     im = ax.imshow(cm_norm * 100,
                    interpolation='nearest',
-                   cmap="viridis",
+                   cmap="YlGnBu",
                    norm=colors.Normalize(vmin=0, vmax=100))
 
     # Colorbar labeled as percentage
