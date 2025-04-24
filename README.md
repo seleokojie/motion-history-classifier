@@ -1,12 +1,6 @@
 # MHI Activity Classifier
 
-This project implements human activity recognition (walking, jogging, running, boxing, waving, clapping) from video using **Motion History Images** (MHIs) and handcrafted Hu moments. You get:
-
-- MHI & Hu‐moment feature extraction (no pre-built MHI or Hu functions).
-- K-Nearest-Neighbors, SVM, AdaBoost or a soft-voting ensemble (KNN+SVM+RF+AdaBoost).
-- Grid-search / random-search over threshold & history length, with parallelism.
-- Feature-caching, down-sampling, and early-stopping to speed up tuning.
-- Real-time annotation script for new videos.
+This project implements human activity recognition (walking, jogging, running, boxing, waving, clapping) from video using **Motion History Images** (MHIs) and handcrafted Hu moments. The pipeline covers data loading, feature extraction, classifier training, model evaluation, and real-time annotation.
 
 ---
 
@@ -16,122 +10,137 @@ project_root/
 ├── data/
 │   ├── sequences.txt
 │   └── videos/           # all .avi clips here
-├── src/
-│   ├── data_loader.py    # parse sequences.txt & load frame segments
-│   ├── mhi.py            # compute frame-diff binaries & MHIs
-│   ├── features.py       # compute central & scale-invariant moments
-│   ├── classifier.py     # KNN, SVM, AdaBoost & VotingClassifier wrapper
-│   └── utils.py          # e.g. frame annotation
+├── src/                  # core modules
+│   ├── data_loader.py    # parse sequences.txt & load/cached frame segments
+│   ├── mhi.py            # compute frame-diff binaries & MHIs (CPU/GPU)
+│   ├── features.py       # compute scale-invariant central (Hu) moments
+│   ├── classifier.py     # KNN, SVM, AdaBoost, RandomForest & soft-voting ensemble
+│   └── utils.py          # frame annotation helper
 ├── scripts/
-│   ├── train.py          # hyperparam tuning & final training script
-│   └── annotate.py       # real-time video annotation using trained model
+│   ├── train.py          # hyperparam search & model training
+│   ├── plot_reports.py   # performance diagnostics & visualizations
+│   └── annotate.py       # real-time video annotation
 ├── outputs/
 │   ├── model_best.joblib
-│   ├── confusion_matrix.png
-│   └── annotated_videos/
+│   ├── thresholds_per_action.json
+│   ├── annotated_videos/
+│   └── reports/          # report plots (confusion matrix, ROC, etc.)
 ├── requirements.txt
 └── README.md
 ```
+
 ---
 
 ## Setup
 
-1. Clone this repo:
-  ```bash
+1. **Clone** the repo and enter the directory:
+   ```bash
    git clone https://github.com/seleokojie/mhi-activity-classifier.git
    cd mhi-activity-classifier
-  ```
+   ```
 
-2. Create & activate a Python 3.8+ virtual environment:
-  ```bash
+2. **Create & activate** a Python 3.8+ virtual environment:
+   ```bash
    python3 -m venv venv
-   source venv/bin/activate        # macOS/Linux or
-   venv\Scripts\activate.bat       # Windows
-  ```
+   source venv/bin/activate        # macOS/Linux
+   venv\Scripts\activate.bat       # Windows PowerShell
+   ```
 
-3. Install dependencies:
-  ```bash
-  pip install -r requirements.txt
-  ```
+3. **Install** dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-4. Ensure `src/` is on your Python path (if needed):
-  ```bash
-   export PYTHONPATH="$PWD"        # macOS/Linux or
-   set PYTHONPATH=%CD%`            # Windows PowerShell
-  ```
+4. **(Optional)** Ensure `src/` is on your Python path:
+   ```bash
+   export PYTHONPATH="$PWD"         # macOS/Linux
+   set PYTHONPATH=%CD%              # Windows PowerShell
+   ```
 
 ---
 
 ## Usage
 
-### Training & Hyperparameter Search
+### 1. Training & Hyperparameter Search (`scripts/train.py`)
 
-Quick test run (accuracy doesn’t matter):
+Runs grid-search or randomized search over motion-threshold values to find per-action and global thresholds, then trains a final classifier.
+
 ```bash
-python scripts/train.py \\
-  --data_dir data \\
-  --output_dir outputs \\
-  --clf knn \\
-  --k 1 \\
-  --min_threshold 30 --max_threshold 30 --step 1 \\
-  --min_tau 30       --max_tau 30       --step 1 \\
-  --jobs 1 --backend threading \\
-  --n_iter 1 \\
-  --subsample 5 \\
-  --patience 1 --min_acc 0.5
+python scripts/train.py \
+  --data_dir data \
+  --output_dir outputs \
+  --clf ensemble \
+  --k 5 \
+  --min_threshold 10 --max_threshold 400 --step 10 \
+  --tau 260 \
+  --jobs 8 --backend loky \
+  --n_iter 25 --seed 42 \
+  --subsample 200
 ```
 
-Parallel random search with soft-voting ensemble:
-```bash
-python scripts/train.py \\
-  --data_dir data \\
-  --output_dir outputs \\
-  --clf ensemble \\
-  --k 5 \\
-  --min_threshold 10 --max_threshold 60 --step 10 \\
-  --min_tau 10       --max_tau 60       --step 10 \\
-  --jobs 8 --backend threading \\
-  --n_iter 20 --seed 42 \\
-  --subsample 150 \\
-  --patience 10 --min_acc 0.1
-```
+**Flags**:
+- `--data_dir`: Path to data directory containing `sequences.txt` and `videos/`.
+- `--output_dir`: Directory where `model_best.joblib` and `thresholds_per_action.json` will be saved.
+- `--clf`: Classifier type (`knn`, `svm`, `ada`, or `ensemble`).
+- `--k`: Number of neighbors for KNN (and ensemble KNN component).
+- `--min_threshold`, `--max_threshold`, `--step`: Range and step size for motion-difference threshold grid.
+- `--tau`: Motion History Image decay parameter (history length).
+- `--jobs`, `--backend`: Parallelism settings for hyperparameter tuning.
+- `--n_iter`: If set, randomly samples this many thresholds instead of full grid.
+- `--seed`: Random seed for reproducibility.
+- `--subsample`: Maximum number of segments to uniformly sample for tuning (speeds up early iterations).
+
+Upon completion, you’ll see printed per-action best thresholds and a final global threshold. Outputs:
+- `outputs/thresholds_per_action.json`
+- `outputs/model_best.joblib`
 
 ---
 
-## Annotate a New Video
+### 2. Performance Reporting (`scripts/plot_reports.py`)
+
+Generates diagnostic plots on a held-out split (default `val`).
 
 ```bash
-python scripts/annotate.py \\
-  --model_path outputs/model_best.joblib \\
-  --input_video data/videos/person22_walking_d1.avi \\
-  --output_video outputs/annotated_videos/walk22.avi \\
-  --threshold 30 \\
-  --tau 30
-```
-```bash
-python scripts/annotate.py \\
-  --model_path outputs/model_best.joblib \\
-  --input_video data/videos/person22_walking_d1.avi \\
-  --output_video outputs/annotated_videos/walk22.avi \\
-  --threshold 30 \\
-  --tau 30
+python scripts/plot_reports.py --threshold 10
 ```
 
-```bash
-python scripts/annotate.py \\
-  --model_path outputs/model_best.joblib \\
-  --input_video data/videos/person22_walking_d1.avi \\
-  --output_video outputs/annotated_videos/walk22.avi \\
-  --threshold 30 \\
-  --tau 30
-```
+**Flags**:
+- `--threshold`: Override global threshold for feature recomputation (default: median of per-action thresholds).
+- `--tau`: History length τ for MHIs (default: 260).
+- `--model_path`: Path to trained model (default: `outputs/model_best.joblib`).
+- `--data_dir`: Dataset root (default: `data`).
+- `--output_dir`: Directory to save plots (default: `outputs/reports`).
+- `--split`: Data split to visualize (`train`, `val`, or `test`).
+
+Plots generated include:
+- Normalized confusion matrix (`confusion_matrix_global.png`)
+- Precision/Recall/F1 bar chart (`prf_bars_global.png`)
+- One-vs-Rest ROC curves (`roc_multiclass_global.png`)
+- Per-action recall bar chart (`per_action_recall_global.png`)
+- Example MHIs for successes and failures
 
 ---
 
-## Speed-Up Tips
+### 3. Real-Time Annotation (`scripts/annotate.py`)
 
-- Feature Caching: Precompute MHI+Hu features once (built into `train.py`)
-- Random Search: Use `--n_iter` to avoid full grid
-- Down-sampling: `--subsample` picks a small subset of segments
-- Early-Stopping: `--patience` & `--min_acc` bail on bad hyperparams
-- Parallelism: `--jobs` + `--backend` threading avoids Windows pickling
+Annotates each frame of a video with the predicted action label.
+
+```bash
+python scripts/annotate.py \
+  --model_path outputs/model_best.joblib \
+  --person 22 \
+  --action handclapping \
+  --condition d1
+```
+
+**Flags**:
+- `--model_path`: Path to the trained classifier (default: `outputs/model_best.joblib`).
+- `--person`: Person ID matching your `data/videos/person{ID}_{action}_{cond}_uncomp.avi` naming.
+- `--action`: Action (`walking`, `jogging`, `running`, `boxing`, `handwaving`, `handclapping`).
+- `--condition`: Condition label (e.g., `d1`–`d4`).
+- `--threshold`: Optional override of per-action threshold (default: loaded from `thresholds_per_action.json`).
+- `--tau`: History length τ (default: 260).
+
+The script reads `data/videos/person{ID}_{action}_{cond}_uncomp.avi`, applies a sliding window of τ frames to compute MHIs, extracts Hu moments, predicts labels, and writes an annotated `.avi` to `outputs/annotated_videos/`.
+
+---
