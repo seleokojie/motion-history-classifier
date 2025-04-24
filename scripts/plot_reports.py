@@ -19,17 +19,7 @@ from src.features import extract_hu_features
 from src.classifier import MHIClassifier
 
 
-def plot_confusion_matrix(y_true, y_pred, classes, output_path):
-    """
-    Plots a confusion matrix where the color scale is percentage (0–100%),
-    but each cell is annotated with both the raw count and the percentage.
-
-    Parameters:
-    - y_true: list or array of ground-truth labels
-    - y_pred: list or array of predicted labels
-    - classes: list of class names, in the order to index the matrix
-    - output_path: filepath to save the resulting figure (e.g. 'cm.png')
-    """
+def plot_confusion_matrix(y_true, y_pred, classes, output_path, title_suffix=''):
     cm = confusion_matrix(y_true, y_pred, labels=classes)
     cm_norm = cm.astype(float) / cm.sum(axis=1)[:, None]
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -42,7 +32,10 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path):
     ax.set_yticklabels(classes)
     ax.set_xlabel('Predicted label')
     ax.set_ylabel('True label')
-    ax.set_title('Confusion Matrix (count + %)')
+    title = 'Confusion Matrix'
+    if title_suffix:
+        title += f' ({title_suffix})'
+    ax.set_title(title)
     thresh_pct = cm_norm.max() * 100 / 2.0
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
@@ -56,25 +49,28 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_path):
     plt.close(fig)
 
 
-def plot_prf_bars(y_true, y_pred, classes, output_path):
+def plot_prf_bars(y_true, y_pred, classes, output_path, title_suffix=''):
     p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, labels=classes)
     x = np.arange(len(classes))
     width = 0.25
-    fig, ax = plt.subplots(figsize=(10,6))
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.bar(x - width, p, width, label='Precision')
-    ax.bar(x       , r, width, label='Recall')
+    ax.bar(x      , r, width, label='Recall')
     ax.bar(x + width, f1, width, label='F1-score')
     ax.set_xticks(x)
     ax.set_xticklabels(classes, rotation=45, ha='right')
     ax.set_ylabel('Score')
-    ax.set_title('Per-class Precision / Recall / F1')
+    title = 'Per-class Precision / Recall / F1'
+    if title_suffix:
+        title += f' ({title_suffix})'
+    ax.set_title(title)
     ax.legend()
     plt.tight_layout()
     fig.savefig(output_path)
     plt.close(fig)
 
 
-def plot_multiclass_roc(clf, X, y, classes, output_path):
+def plot_multiclass_roc(clf, X, y, classes, output_path, title_suffix=''):
     Y_bin = label_binarize(y, classes=classes)
     y_score = clf.predict_proba(X)
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -87,7 +83,10 @@ def plot_multiclass_roc(clf, X, y, classes, output_path):
     ax.set_ylim([0.0, 1.05])
     ax.set_xlabel('False Positive Rate')
     ax.set_ylabel('True Positive Rate')
-    ax.set_title('One-vs-Rest ROC Curves')
+    title = 'One-vs-Rest ROC Curves'
+    if title_suffix:
+        title += f' ({title_suffix})'
+    ax.set_title(title)
     ax.legend(loc='lower right', fontsize='small')
     plt.tight_layout()
     fig.savefig(output_path)
@@ -104,11 +103,11 @@ def show_mhi_example(frames, thr, tau, prefix, output_dir):
     axes[1].imshow(B[idx-1], cmap='gray')
     axes[1].set_title('Binary')
     axes[2].imshow(M, cmap='gray')
-    axes[2].set_title('MHI')
+    axes[2].set_title(f'MHI (thr={thr})')
     for ax in axes:
         ax.axis('off')
     plt.tight_layout()
-    path = os.path.join(output_dir, f"{prefix}_mhi_pipeline.png")
+    path = os.path.join(output_dir, f"{prefix}_mhi_thr{thr}.png")
     fig.savefig(path)
     plt.close(fig)
 
@@ -132,7 +131,7 @@ def main():
                         help='Data split to use (default: val)')
     args = parser.parse_args()
 
-    # load thresholds
+    # load thresholds mapping
     if not os.path.exists(args.thresholds_file):
         print(f"[ERROR] Thresholds file not found: {args.thresholds_file}")
         sys.exit(1)
@@ -140,13 +139,21 @@ def main():
         per_act = json.load(f)
 
     # determine global threshold
-    thr_global = args.threshold if args.threshold is not None else per_act.get('global')
-    if thr_global is None:
-        print("[ERROR] Global threshold not specified and 'global' key missing in thresholds file.")
-        sys.exit(1)
-    print(f"[INFO] Using global threshold={thr_global}, τ={args.tau}")
+    if args.threshold is not None:
+        global_thr = args.threshold
+    elif 'global' in per_act:
+        global_thr = per_act['global']
+    else:
+        vals = list(per_act.values())
+        global_thr = int(np.median(vals))
+        print(f"[WARNING] 'global' key missing; using median per-action threshold={global_thr}")
 
-    # load model\
+    print(f"[INFO] Using threshold={global_thr}, τ={args.tau}\n")
+
+    # load model
+    if not os.path.exists(args.model_path):
+        print(f"[ERROR] Model file not found: {args.model_path}")
+        sys.exit(1)
     clf = MHIClassifier.load(args.model_path)
     classes = list(clf.clf.classes_)
 
@@ -154,31 +161,59 @@ def main():
     loader = DataLoader(args.data_dir, split=args.split)
     val_data = list(loader.load_segments())
 
-    # recompute features & predictions
+    # compute features & predictions with global threshold
     X, y_true = [], []
     for frames, label, _ in val_data:
-        B = compute_binary_sequence(frames, threshold=thr_global)
+        B = compute_binary_sequence(frames, threshold=global_thr)
         M = compute_mhi(B, tau=args.tau)
         X.append(extract_hu_features(M))
         y_true.append(label)
     X = np.vstack(X)
     y_pred = clf.predict(X)
 
+    # create output directory
     os.makedirs(args.output_dir, exist_ok=True)
-    # generate plots
-    plot_confusion_matrix(y_true, y_pred, classes, os.path.join(args.output_dir, 'confusion_matrix_report.png'))
-    plot_prf_bars(y_true, y_pred, classes, os.path.join(args.output_dir, 'prf_bars.png'))
-    plot_multiclass_roc(clf.clf, X, y_true, classes, os.path.join(args.output_dir, 'roc_multiclass.png'))
 
-    # examples using per-action thresholds
-    correct = [(f,l,idx) for idx,(f,l,_) in enumerate(val_data) if l == y_pred[idx]]
-    incorrect = [(f,l,idx) for idx,(f,l,_) in enumerate(val_data) if l != y_pred[idx]]
-    if correct:
-        action, _ , idx = correct[0]
-        show_mhi_example(val_data[idx][0], per_act.get(y_true[idx]), args.tau, 'success', args.output_dir)
-    if incorrect:
-        action, _ , idx = incorrect[0]
-        show_mhi_example(val_data[idx][0], per_act.get(y_true[idx]), args.tau, 'failure', args.output_dir)
+    # generate global plots
+    plot_confusion_matrix(y_true, y_pred, classes,
+                          os.path.join(args.output_dir, 'confusion_matrix_global.png'), 'global')
+    plot_prf_bars(y_true, y_pred, classes,
+                  os.path.join(args.output_dir, 'prf_bars_global.png'), 'global')
+    plot_multiclass_roc(clf.clf, X, y_true, classes,
+                        os.path.join(args.output_dir, 'roc_multiclass_global.png'), 'global')
+
+    # generate per-action recall bar chart
+    recalls = []
+    for act in classes:
+        mask = [i for i,(_,label,_) in enumerate(val_data) if label == act]
+        y_true_act = [y_true[i] for i in mask]
+        y_pred_act = [y_pred[i] for i in mask]
+        if mask:
+            _, recall, _, _ = precision_recall_fscore_support(
+                y_true_act, y_pred_act, labels=[act], zero_division=0
+            )
+            recalls.append(recall[0])
+        else:
+            recalls.append(0.0)
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.bar(classes, recalls)
+    ax.set_ylabel('Recall')
+    ax.set_xlabel('Action')
+    ax.set_title('Per-action Recall (global threshold)')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    fig.savefig(os.path.join(args.output_dir, 'per_action_recall_global.png'), dpi=150)
+    plt.close(fig)
+
+    # example MHIs with per-action thresholds and annotated names
+    success_idxs = [i for i,(f,l,_) in enumerate(val_data) if l == y_pred[i]]
+    failure_idxs = [i for i,(f,l,_) in enumerate(val_data) if l != y_pred[i]]
+    for prefix, idx_list in [('success', success_idxs), ('failure', failure_idxs)]:
+        if idx_list:
+            idx = idx_list[0]
+            frames, label, _ = val_data[idx]
+            thr_act = per_act.get(label, global_thr)
+            show_mhi_example(frames, thr_act, args.tau, f"{prefix}_{label}", args.output_dir)
 
     print(f"All report plots saved under {args.output_dir}")
 
