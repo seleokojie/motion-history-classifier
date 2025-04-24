@@ -153,13 +153,19 @@ def main():
         for thr, tau in grid
     )
 
-    with open(os.path.join(args.output_dir, 'search_results.pkl'), 'wb') as f:
-        pickle.dump({'grid': grid, 'results': results}, f)
-    print(f"Saved hyperparam search results to {args.output_dir}/search_results.pkl")
-
     # Pick best
     best_thr, best_tau, best_acc = max(results, key=lambda x: x[2])
     print(f"Best params -> threshold={best_thr}, tau={best_tau}, acc={best_acc:.4f}")
+
+    report_data = {
+        'thresholds': thresholds,
+        'taus': taus,
+        'grid': grid,
+        'results': results
+    }
+    with open(os.path.join(args.output_dir, 'search_results.pkl'), 'wb') as f:
+        pickle.dump(report_data, f)
+    print(f"Saved hyperparam search data to {args.output_dir}/search_results.pkl")
 
     # Retrain final model on full train split
     X_final_tr, y_final_tr = feats_train[(best_thr, best_tau)]
