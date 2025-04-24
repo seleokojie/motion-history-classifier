@@ -115,21 +115,21 @@ def show_mhi_example(frames, thr, tau, prefix, output_dir):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir',    required=True)
-    parser.add_argument('--model_path',  required=True)
-    parser.add_argument('--thresholds_file', default=os.path.join(
-        os.path.dirname(__file__),
-        '..',
-        'outputs',
-        'thresholds_per_action.json'
-    ),
-                        help='JSON file mapping each action to its best threshold')
+    parser.add_argument('--data_dir',    default='data',
+                        help='Path to data directory (default: data)')
+    parser.add_argument('--model_path',  default='outputs/model_best.joblib',
+                        help='Path to trained model (default: outputs/model_best.joblib)')
+    parser.add_argument('--results',     dest='thresholds_file',
+                        default='outputs/thresholds_per_action.json',
+                        help='JSON file for per-action thresholds (default: outputs/thresholds_per_action.json)')
     parser.add_argument('--threshold',   type=int, default=None,
                         help='Override global threshold for recomputing features')
     parser.add_argument('--tau',         type=int, default=260,
                         help='History length τ (default: 260)')
-    parser.add_argument('--output_dir',  required=True)
-    parser.add_argument('--split',       default='val')
+    parser.add_argument('--output_dir',  default='outputs/reports',
+                        help='Directory to save report plots (default: outputs/reports)')
+    parser.add_argument('--split',       default='val',
+                        help='Data split to use (default: val)')
     args = parser.parse_args()
 
     # load thresholds
