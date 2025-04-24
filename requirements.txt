@@ -3,3 +3,5 @@ scikit-learn
 numpy
 matplotlib
 joblib
+torch
+cupy-cuda12x

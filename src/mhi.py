@@ -1,34 +1,40 @@
+try:
+    import cupyx as cp
+    from cupyx.scipy.ndimage import binary_opening
+    # ensure nvrtc & CUDA are really available
+    _HAS_GPU = cp.cuda.runtime.getDeviceCount() > 0
+except Exception:
+    cp = None
+    _HAS_GPU = False
+
 import numpy as np
 import cv2
 
-# detect at import time
-_GPU = cv2.cuda.getCudaEnabledDeviceCount() > 0
-
 def compute_binary_sequence(frames, threshold=30, kernel_size=3):
     """
-    Compute binary frame-difference masks Bt(x,y)
+    Compute binary frame‐difference masks Bt(x,y) on the GPU via CuPy,
+    then download them back to NumPy for downstream processing.
     """
+    if _HAS_GPU:
+        kernel = cp.ones((kernel_size, kernel_size), cp.uint8)
+        binaries = []
+        for i in range(1, len(frames)):
+            a = cp.asarray(frames[i-1], dtype=cp.uint8)
+            b = cp.asarray(frames[i],   dtype=cp.uint8)
+            diff = cp.abs(b - a)
+            bw = (diff >= threshold).astype(cp.uint8)
+            opened = binary_opening(bw, structure=kernel)
+            binaries.append(cp.asnumpy(opened))
+        return binaries
+
+    # CPU fallback
     kernel = np.ones((kernel_size, kernel_size), np.uint8)
     binaries = []
-    if _GPU:
-        # upload first frame
-        prev = cv2.cuda_GpuMat(); prev.upload(frames[0])
-        morph = cv2.cuda.createMorphologyFilter(cv2.MORPH_OPEN, cv2.CV_8U, kernel)
-
-    for gray in frames[1:]:
-            curr = cv2.cuda_GpuMat(); curr.upload(gray)
-            diff = cv2.cuda.absdiff(curr, prev)
-            _, bw = cv2.cuda.threshold(diff, threshold, 1, cv2.THRESH_BINARY)
-            opened = morph.apply(bw)
-            binaries.append(opened.download())
-            prev = curr
-    else:
-        for i in range(1, len(frames)):
-            diff = cv2.absdiff(frames[i], frames[i - 1])
-            _, bw = cv2.threshold(diff, threshold, 1, cv2.THRESH_BINARY)
-            bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
-            binaries.append(bw)
-
+    for i in range(1, len(frames)):
+        diff = cv2.absdiff(frames[i], frames[i-1])
+        _, bw = cv2.threshold(diff, threshold, 1, cv2.THRESH_BINARY)
+        bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
+        binaries.append(bw)
     return binaries
 
 
