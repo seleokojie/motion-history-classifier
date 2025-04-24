@@ -1,6 +1,6 @@
 # ignore video files and sequences.txt
-*.avi
-sequences.txt
+data/videos/*avi
+data/videos/*.npy
 
 #Ignore pyc (compiled Python files)
 *.pyc
@@ -15,6 +15,3 @@ Classification using MHI.pdf
 
 # Ignore all joblib files
 *.joblib
-
-# Ignore output directories
-outputs
