@@ -9,6 +9,7 @@ import argparse
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, roc_curve, auc
 from sklearn.preprocessing import label_binarize
 
@@ -19,25 +20,54 @@ from src.classifier import MHIClassifier
 
 
 def plot_confusion_matrix(y_true, y_pred, classes, output_path):
+    """
+    Plots a confusion matrix where the color scale is percentage (0–100%),
+    but each cell is annotated with both the raw count and the percentage.
+
+    Parameters:
+    - y_true: list or array of ground-truth labels
+    - y_pred: list or array of predicted labels
+    - classes: list of class names, in the order to index the matrix
+    - output_path: filepath to save the resulting figure (e.g. 'cm.png')
+    """
+    # Compute raw conf. matrix
     cm = confusion_matrix(y_true, y_pred, labels=classes)
-    cm_norm = cm.astype('float') / cm.sum(axis=1)[:, None]
-    fig, ax = plt.subplots(figsize=(8,8))
-    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    ax.figure.colorbar(im, ax=ax)
-    ax.set(
-        xticks=np.arange(len(classes)), yticks=np.arange(len(classes)),
-        xticklabels=classes, yticklabels=classes,
-        ylabel='True label', xlabel='Predicted label',
-        title='Confusion Matrix (counts + %)'    )
-    thresh = cm.max() / 2.0
+    # Normalize by true-class totals → fractions in [0,1]
+    cm_norm = cm.astype(float) / cm.sum(axis=1)[:, None]
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    im = ax.imshow(cm_norm * 100,
+                   interpolation='nearest',
+                   cmap=plt.cm.Blues,
+                   norm=colors.Normalize(vmin=0, vmax=100))
+
+    # Colorbar labeled as percentage
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label('Percentage (%)', rotation=270, labelpad=15)
+
+    # Axis ticks/labels
+    ax.set_xticks(np.arange(len(classes)))
+    ax.set_yticks(np.arange(len(classes)))
+    ax.set_xticklabels(classes, rotation=45, ha='right')
+    ax.set_yticklabels(classes)
+
+    ax.set_xlabel('Predicted label')
+    ax.set_ylabel('True label')
+    ax.set_title('Confusion Matrix\n(counts + %)')
+
+    # Annotate each cell with count and percent
+    thresh = cm_norm.max() * 100 / 2.0  # half of max percentage
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            cnt = cm[i, j]
+            count = cm[i, j]
             pct = cm_norm[i, j] * 100
-            ax.text(j, i, f"{cnt}\n{pct:.1f}%", ha='center', va='center',
-                    color='white' if cnt > thresh else 'black')
+            text = f"{count}\n{pct:.1f}%"
+            ax.text(j, i, text,
+                    ha="center", va="center",
+                    color="white" if (cm_norm[i, j] * 100) > thresh else "black")
+
     plt.tight_layout()
-    fig.savefig(output_path)
+    fig.savefig(output_path, dpi=150)
     plt.close(fig)
 
 
@@ -117,13 +147,14 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 1) Load search results
+    # 1) Load search results (with full thresholds & taus)
+
     with open(args.results, 'rb') as f:
         data = pickle.load(f)
-    grid, results = data['grid'], data['results']
-    thr_list = sorted({thr for thr,_ in grid})
-    tau_list = sorted({tau for _,tau in grid})
-    acc_dict = { (thr,tau):acc for (thr,tau,acc) in results }
+    thresholds = data['thresholds']  # e.g. [10,20,30,40,50,60]
+    taus = data['taus']  # e.g. [10,20,30,40,50,60]
+    results = data['results']  # list of (thr, tau, accuracy)
+    acc_dict = {(thr, tau): acc for thr, tau, acc in results}
 
     # 2) Load model
     clf = MHIClassifier.load(args.model_path)
@@ -150,8 +181,12 @@ def main():
                   os.path.join(args.output_dir,'prf_bars.png'))
     plot_multiclass_roc(clf.clf, X_val, y_val, classes,
                         os.path.join(args.output_dir,'roc_multiclass.png'))
-    plot_hyperparam_heatmap(acc_dict, thr_list, tau_list,
-                            os.path.join(args.output_dir,'hyperparam_heatmap.png'))
+    plot_hyperparam_heatmap(
+        acc_dict,
+        thresholds,
+        taus,
+        os.path.join(args.output_dir, 'hyperparam_heatmap.png')
+    )
 
     # 5) Example MHIs (pick one correct & one incorrect)
     correct = [(f,l,idx) for idx,(f,l,_) in enumerate(val_data) if l==y_pred[idx]]
